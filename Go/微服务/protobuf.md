@@ -934,3 +934,230 @@ func main() {
 }
 ```
 
+# WrapValue
+
+### 基本介绍
+
+protobuf v3在删除 `required`的同时把 `optional`也一起删除了（[v3.15.0又加回来了](https://github.com/protocolbuffers/protobuf/blob/v3.15.0/docs/field_presence.md#how-to-enable-explicit-presence-in-proto3)），这使得我们没办法轻易判断某些字段究竟是未赋值还是其被赋值为零值。
+
+例如，当我们有如下消息定义时，我们拿到一个book消息，当 `book.Price = 0`时我们没办法区分 `book.Price`字段是未赋值还是被赋值为0。
+
+```
+message Book {
+    string title = 1;
+    double price = 2;
+}
+```
+
+### 快速入门
+
+##### protobuf 定义
+
+类似这种场景推荐使用 `google/protobuf/wrappers.proto`中定义的WrapValue，本质上就是使用自定义message 代替基本类型。
+
+```
+import "google/protobuf/wrappers.proto";
+
+message Book{
+  string title = 1;
+  google.protobuf.DoubleValue price = 2; // 数量
+  google.protobuf.Int64Value inventory = 3; // 库存
+  google.protobuf.StringValue content = 4;
+}
+```
+
+book.pb.go
+
+![1744480027911](image/protobuf/1744480027911.png)
+
+wrappers.proto
+
+![1744480083889](image/protobuf/1744480083889.png)
+
+实际上是通过多嵌套了一层自定义结构体指针，再借助指针未初始化为nil来区分默认与设置零值。
+
+##### client端代码
+
+使用了 `wrappers.proto`中定义的包装类型后，我们在赋值的时候就需要额外包一层。
+
+```
+import "google.golang.org/protobuf/types/known/wrapperspb"
+
+func client() {
+	book = &api.Book{
+		Title:     "《百万》",
+		Price:     &wrapperspb.DoubleValue{Value: 12.2},
+		Inventory: &wrapperspb.Int64Value{Value: 600},
+		Content:   &wrapperspb.StringValue{Value: "回家"},
+	}
+}
+```
+
+##### server端代码
+
+WrapValue本质上类似于标准库sql中定义的 `sql.NullInt64`、`sql.NullString`，即将基本数据类型包装为一个结构体类型。在使用时通过判断某个字段是否为nil（空指针）来区分该字段是否被赋值。
+
+```
+import "google.golang.org/protobuf/types/known/wrapperspb"
+
+func server() {
+	if book.Price == nil {
+		fmt.Println("该书没有设置价格...")
+	} else {
+		fmt.Println(book.Price.Value)
+	}
+}
+```
+
+# optional v3.15.0+
+
+### 基本介绍
+
+Protobuf **v3.15.0** 版本之后又支持使用 `optional`显式指定字段为可选。
+
+下面的示例中，我们使用 `optional`标识 `price`为可选字段。
+
+```
+message Book2{
+  string title = 1;
+  optional double price = 2; // 数量
+  optional int64 inventory = 3; // 库存
+  optional string content = 4;
+}
+```
+
+修改了 `proto`文件后，重新编译。
+
+book.pb.go
+
+![1744481225118](image/protobuf/1744481225118.png)
+
+wrappers.proto
+
+![1744481234243](image/protobuf/1744481234243.png)
+
+实际上是通过函数返回对应类型的指针，再借助指针未初始化为nil来区分默认与设置零值。
+
+### 快速入门
+
+##### client端代码
+
+现在 `price`字段就是 `*int64`类型了，我们需要使用 `google.golang.org/protobuf/proto`包提供的系列函数完成赋值操作。
+
+```
+import "google.golang.org/protobuf/proto"
+
+func client2() {
+	book2 = &api.Book2{
+		Title:     "《what》",
+		Price:     proto.Float64(13.3),
+		Inventory: proto.Int64(577),
+		Content:   proto.String("wow"),
+	}
+}
+```
+
+##### server端代码
+
+如果需要判断 `price`字段是否赋值，可以判断是否为 `nil`。
+
+```
+import "google.golang.org/protobuf/proto"
+
+func server2() {
+	if book2.Inventory == nil {
+		fmt.Println("本书没有库存...")
+	} else {
+		fmt.Println(*book2.Inventory)
+	}
+}
+```
+
+# FieldMask
+
+### 基本介绍
+
+假设现在需要实现一个更新书籍信息接口，我们可能会定义如下更新书籍的消息。
+
+```
+message UpdateBookRequest {
+    // 操作人 
+    string op = 1;
+    // 要更新的书籍信息
+    Book book = 2;
+}
+```
+
+但是如果我们的 `Book`中定义有很多很多字段时，我们不太可能每次请求都去全量更新 `Book`的每个字段，因为通常每次操作只会更新1到2个字段。
+
+那么我们该如何确定每次更新操作涉及到了哪些具体字段呢？
+
+答案是使用 `google/protobuf/field_mask.proto`，它能够记录在一次更新请求中涉及到的具体字段路径。
+
+为了实现一个支持部分更新的接口，我们把 `UpdateBookRequest`消息修改如下。
+
+```
+import "google/protobuf/field_mask.proto";
+
+message UpdateBookRequest{
+  // 操作人
+  string op = 1;
+  // 要更新的message
+  Book book = 2;
+  // 要更新的字段
+  google.protobuf.FieldMask update_mask = 3;
+}
+```
+
+field_mask.proto
+
+![1744484069648](image/protobuf/1744484069648.png)
+
+### client端代码
+
+我们通过 `paths`记录本次更新的字段路径，如果是嵌套的消息类型则通过 `x.y`的方式标识。
+
+```
+import "google.golang.org/protobuf/types/known/fieldmaskpb"
+
+func client() {
+	// 记录更新的字段路径
+	paths := []string{"price", "type.name"}
+	updateReq = &api.UpdateBookRequest{
+		Op: "star",
+		Book: &api.Book{
+			Price: 112.2,
+			Type: &api.Book_Type{
+				Name: "百科",
+			},
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: paths},
+	}
+}
+```
+
+### server端代码
+
+`MaskFromProtoFieldMask`函数（签名如下）
+
+```
+func MaskFromProtoFieldMask(fm *field_mask.FieldMask, naming func(string) string) (Mask, error)
+```
+
+接收的 `naming`参数本质上是一个将字段掩码字段名映射到 Go 结构中使用的名称的函数，它必须根据你的实际需求实现。
+
+例如在我们这个示例中，可以使用 `github.com/iancoleman/strcase`包提供的 `ToCamel`方法：
+
+```
+import "github.com/iancoleman/strcase"
+import fieldmask_utils "github.com/mennanov/fieldmask-utils"
+
+func server() {
+	mask, _ := fieldmask_utils.MaskFromProtoFieldMask(updateReq.UpdateMask, strcase.ToCamel)
+	var bookDst = make(map[string]interface{})
+	// 将数据读取到map[string]interface{}
+	// fieldmask-utils支持读取到结构体等，更多用法可查看文档。
+	fieldmask_utils.StructToMap(mask, updateReq.Book, bookDst)
+	fmt.Println(bookDst)
+}
+```
