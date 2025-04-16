@@ -274,7 +274,7 @@ note：
 
 map语法序列化后等同于如下内容，因此即使是不支持map语法的protocol buffer实现也是可以处理你的数据的。
 
-```protobuf
+```
 message MapFieldEntry {
   key_type key = 1;
   value_type value = 2;
@@ -382,6 +382,24 @@ repeated 字段的默认值为空(通常是适当语言中的空列表)。
 ```
 service SearchService {
   rpc Search(SearchRequest) returns (SearchResponse);
+}
+```
+
+以下是RPC流式示例。
+
+```
+service Greeter {
+  // 方法
+  rpc SayHello(HelloRequest) returns (HelloResponse);
+
+  // 服务端返回流式数据
+  rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
+
+  // 客户端发送流式数据
+  rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
+
+  // 双向流式数据
+  rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
 }
 ```
 
@@ -1073,6 +1091,28 @@ func server2() {
 }
 ```
 
+##### Makefile编译
+
+```
+.PHONY: gen help
+
+PROTO_DIR=proto
+
+gen:
+	protoc \
+	--proto_path=$(PROTO_DIR) \
+	--go_out=$(PROTO_DIR) \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=$(PROTO_DIR) \
+	--go-grpc_opt=paths=source_relative \
+	--grpc-gateway_out=$(PROTO_DIR) \
+	--grpc-gateway_opt=paths=source_relative \
+	book.proto
+
+help:
+	@echo "make gen - 生成pb及grpc代码"
+```
+
 # FieldMask
 
 ### 基本介绍
@@ -1161,3 +1201,7 @@ func server() {
 	fmt.Println(bookDst)
 }
 ```
+
+# 管理 protobuf
+
+在企业的项目开发中，我们通常会把 protobuf 文件存储到一个单独的代码库中，并在具体项目中通过 `git submodule`引入。这样做的好处是能够将 protobuf 文件统一管理和维护，避免因 protobuf 文件改动导致的问题。
