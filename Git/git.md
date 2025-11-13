@@ -1,6 +1,20 @@
-# 参考笔记
+# 快速入门
 
-[狂神公众号](https://mp.weixin.qq.com/s/Bf7uVhGiu47uOELjmC5uXQ)
+[git - 简明指南](https://www.runoob.com/manual/git-guide/)
+
+### 提交
+
+```
+# 提出更改（把它们添加到暂存区）
+# 所有
+git add .
+# 某个文件/文件夹
+git add 文件位置
+# 实际提交改动
+git commit -m "代码提交信息"
+# 提交到远端仓库
+git push origin master
+```
 
 # 版本控制
 
@@ -397,3 +411,7 @@ fatal: unable to access 'https://github.com/STAR0903/algorithm.git/': OpenSSL SS
 ```
 git clone git@github.com:[user_name]/[repository_name].git
 ```
+
+# 参考笔记
+
+[狂神公众号](https://mp.weixin.qq.com/s/Bf7uVhGiu47uOELjmC5uXQ)
