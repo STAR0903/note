@@ -16,13 +16,12 @@ syntax = "proto3";
 // 导入路径：指定生成的go代码在项目的导入路径
 option go_package = "client/pb";
 
-// 包名:注意server端与client端的包名要一致
+// 包名: 注意server端与client端的包名要一致
 package pb;
 
-// 定义消息类型，需要指定：字段类型、字段名、字段编号
 // 请求信息
 message HelloRequest{
-  string name = 1;
+  string name = 1;	// 定义消息类型，需要指定：字段类型、字段名、字段编号
 }
 // 响应信息
 message HelloResponse{
@@ -45,7 +44,7 @@ syntax = "proto3";
 
 这个声明必须是文件的第一个非空非注释行。
 
-如果不这样写，protocol buffer编译器将假定你使用 proto2。
+如果不这样写，`protocol buffer` 编译器将假定你使用 `proto2` 。
 
 ### 导入路径
 
@@ -79,7 +78,7 @@ protoc --proto_path=src \
 
 Go 导入路径和 `.proto` 文件中的 `package`说明符之间没有关联。 后者仅与 protobuf 命名空间相关，而前者仅与 Go 命名空间相关。 此外，Go 导入路径和 `.proto` 导入路径之间没有关联。
 
-### Packages
+### Package
 
 可以向 `.proto` 文件添加一个可选 `package`说明符，以防止协议消息类型之间的名称冲突。
 
@@ -100,10 +99,9 @@ message Foo {
 
 对于Go，包可以被用做Go包名称，除非你显式的提供一个 `option go_package`在你的.proto文件中。
 
-### 定义message
+### message
 
 ```
-// 定义消息类型，需要指定：字段类型、字段名、字段编号
 message HelloRequest{
   string name = 1;
 }
@@ -138,15 +136,13 @@ message HelloResponse{
 | string      | 字符串必须始终包含 UTF-8编码的或7位 ASCII 文本，且不能长于232。                   | string  |
 | bytes       | 可以包含任何不超过232字节的任意字节序列。                                         | []byte  |
 
-##### 复合类型
-
-###### 枚举
+##### 枚举
 
 在定义消息类型时，你可能希望其中一个字段只能是预定义的值列表中的一个值。
 
 例如，假设你想为每个 SearchRequest 添加一个语料库字段，其中语料库可以是 UNIVERSAL、 WEB、 IMAGES、 LOCAL、 NEWS、 PRODUCTS 或 VIDEO。
 
-你可以通过在消息定义中添加一个枚举，为每个可能的值添加一个常量来非常简单地完成这项工作。枚举的常数必须在32位整数的范围内。由于枚举值在传输时使用变长编码，因此负值效率低，因此不推荐使用。
+你可以通过在消息定义中添加一个枚举，为每个可能的值添加一个常量来非常简单地完成这项工作。枚举的常数必须在32位整数的范围内。由于枚举值在传输时使用变长编码，因此负值效率低，因此不推荐使用负值。
 
 note：枚举的定义中常量为枚举值，message定义中常量为编号，两者互不影响。
 
@@ -172,7 +168,7 @@ message SearchRequest {
 
 使用 MessageType.EnumType 语法，可以在一个消息中声明的enum类型作为不同消息中的字段类型。
 
-你可以通过将相同的值分配给不同的枚举常量来定义别名。为此，你需要将 allow _ alias 选项设置为 true，否则，当发现别名时，protocol 编译器将生成错误消息。
+你可以通过将相同的值分配给不同的枚举常量来定义别名。为此，你需要将 `allow_alias` 选项设置为 true，否则，当发现别名时，protocol 编译器将生成错误消息。
 
 ```
 enum Today{
@@ -203,7 +199,7 @@ message MyMessage2{
 
 如果通过完全删除枚举条目或注释掉枚举类型来更新枚举类型，那么未来的用户在自己更新该类型时可以重用该数值。
 
-这可能会导致严重的问题，如果以后有人加载旧版本的相同 `.proto`文件，包括数据损坏，隐私漏洞等等。确保不发生这种情况的一种方法是指定已删除条目的数值(或名称，这也可能导致 JSON 序列化问题)为 `reserved`。
+这可能会导致严重的问题，如果以后有人加载旧版本的相同 `.proto`文件，包括数据损坏，隐私漏洞等等。确保不发生这种情况的一种方法是指定已删除条目的数值或名称为 `reserved`。
 
 如果任何未来的用户试图使用这些标识符，protocol buffer 编译器将报错。
 
@@ -218,7 +214,7 @@ enum Foo {
 
 注意，不能在同一个保留语句中混合字段名和数值。
 
-###### 嵌套message
+##### 嵌套message
 
 你可以在其他消息类型中定义和使用消息类型，如下面的例子——这里的 `Result`消息是在 `SearchResponse`消息中定义的:
 
@@ -241,7 +237,28 @@ message SomeOtherMessage {
 }
 ```
 
-###### Maps
+##### Any
+
+`Any` 消息类型允许你在消息中嵌入任意其他类型的消息，而不需要其 `.proto` 定义。`Any`包含一个任意序列化的字节消息，以及一个解析为该消息的类型作为消息的全局唯一标识符的URL。要使用 `Any`类型，需要导入 `google/protobuf/any.proto`。
+
+```protobuf
+import "google/protobuf/any.proto";
+
+message ErrorStatus {
+  string message = 1;
+  repeated google.protobuf.Any details = 2;
+}
+```
+
+给定消息类型的默认类型 URL 是 `type.googleapis.com/_packagename_._messagename_`
+
+##### oneof
+
+如果你有一条包含多个字段的消息，并且最多同时设置其中一个字段，那么你可以通过使用 `oneof`来实现并节省内存。
+
+`oneof`字段类似于常规字段，只不过 `oneof`中的所有字段共享内存，而且最多可以同时设置一个字段。设置其中的任何成员都会自动清除所有其他成员。根据所选择的语言，可以使用特殊 `case()`或 `WhichOneof()` 方法检查 one of 中的哪个值被设置(如果有的话)。
+
+##### Maps
 
 如果你想创建一个关联映射作为你数据定义的一部分，protocol buffers提供了一个方便的快捷语法:
 
@@ -285,9 +302,33 @@ repeated MapFieldEntry map_field = N;
 
 任何支持映射的protocol buffers实现都必须生成并接受上述定义可以接受的数据。
 
-#### 字段
+#### 使用其他消息类型
 
-###### 指定字段规则
+你可以使用其他消息类型作为字段类型。例如，假设你希望在每个 `SearchResponse`消息中包含UI个 `Result`消息——为了做到这一点，你可以在同一个 `.proto`文件中定义 `Result`消息类型。然后在 `SearchResponse`中指定 `Result` 类型的字段。
+
+```protobuf
+message SearchResponse {
+  repeated Result results = 1;
+}
+
+message Result {
+  string url = 1;
+  string title = 2;
+  repeated string snippets = 3;
+}
+```
+
+#### 字段编号
+
+如你所见，消息定义中的每个字段都有一个唯一的编号。这些字段编号用来在消息二进制格式中标识字段，在消息类型使用后就不能再更改。
+
+注意，范围1到15中的字段编号需要一个字节进行编码，包括字段编号和字段类型。范围16到2047的字段编号采用两个字节。因此，应该为经常使用的消息元素保留数字1到15的编号。切记为将来可能添加的经常使用的元素留出一些编号。
+
+你可以指定的最小字段数是1，最大的字段数是 $2^{29} -1$ ，即536,870,911。你不能使用19000到19999 (`FieldDescriptor::kFirstReservedNumber `到 `FieldDescriptor::kLastReservedNumber`)的编号，它们是预留给Protocol Buffers协议实现的。
+
+如果你在你的.proto文件中使用了预留的编号Protocol Buffers编译器就会报错。同样，你也不能使用任何之前保留的字段编号。
+
+#### 指定字段规则
 
 消息字段可以是下列字段之一:
 
@@ -298,13 +339,11 @@ repeated MapFieldEntry map_field = N;
 
 你可以在 [Protocol Buffer Encoding](https://developers.google.com/protocol-buffers/docs/encoding#packed) 中找到关于 `packed`编码的更多信息。
 
-###### 保留字段
+#### 保留字段
 
-如果你通过完全删除字段或将其注释掉来**更新**消息类型，那么未来的用户在对该类型进行自己的更新时可以重用字段号。
+如果你通过完全删除字段或将其注释掉来**更新**消息类型，那么未来的用户在对该类型进行自己的更新时可以重用字段号。如果其他人以后加载旧版本的相同 `.proto`文件，这可能会导致严重的问题，包括数据损坏，隐私漏洞等等。
 
-如果其他人以后加载旧版本的相同 `.proto`文件，这可能会导致严重的问题，包括数据损坏，隐私漏洞等等。
-
-确保这种情况不会发生的一种方法是指定已删除字段的字段编号(或名称，这也可能导致 JSON 序列化问题)是保留的（`reserved`）。
+确保这种情况不会发生的一种方法是指定已删除字段的字段编号或名称是保留的（`reserved`）。
 
 如果将来有任何用户尝试使用这些字段标识符，protocol buffer编译器将发出提示。
 
@@ -317,13 +356,13 @@ message Foo {
 
 注意，不能在同一个 `reserved`语句中混合字段名和字段编号。
 
-###### 未知字段
+#### 未知字段
 
 未知字段是格式良好的协议缓冲区序列化数据，表示解析器不识别的字段。例如，当旧二进制解析由新二进制发送的带有新字段的数据时，这些新字段将成为旧二进制中的未知字段。
 
 最初，proto3消息在解析过程中总是丢弃未知字段，但在3.5版本中，我们重新引入了未知字段的保存来匹配 proto2行为。在3.5及以后的版本中，解析期间保留未知字段，并将其包含在序列化输出中。
 
-###### 默认值
+#### 默认值
 
 当解析消息时，如果编码消息不包含特定的 singular 元素，则解析对象中的相应字段将设置为该字段的默认值。
 
@@ -334,27 +373,15 @@ message Foo {
 * 对于枚举，默认值是第一个定义的枚举值，该值必须为0。
 * 对于消息字段，未设置该字段。其确切值与语言有关。详细信息请参阅[生成的代码指南](https://developers.google.com/protocol-buffers/docs/reference/overview)。
 
-repeated 字段的默认值为空(通常是适当语言中的空列表)。
+`repeated` 字段的默认值为空(通常是适当语言中的空列表)。
 
 请注意，对于标量消息字段，一旦消息被解析，就无法判断字段是显式设置为默认值(例如，是否一个布尔值是被设置为 `false`)还是根本没有设置: 在定义消息类型时应该牢记这一点。
 
 例如，如果你不希望某个行为在默认情况下也发生，那么就不要设置一个布尔值，该布尔值在设置为 `false` 时会开启某些行为。
 
-还要注意，如果将标量消息字段**设置**为默认值，则该值将不会在传输过程中序列化。
+还要注意，如果将标量消息字段**设置**为对应类型的默认值( 例如 `int32 number = 0` )，则该值将不会在传输过程中序列化。
 
 有关生成的代码的默认工作方式的更多详细信息，请参阅所选语言的[生成代码指南](https://developers.google.com/protocol-buffers/docs/reference/overview)。
-
-#### 字段编号
-
-如你所见，消息定义中的每个字段都有一个唯一的编号。这些字段编号用来在消息二进制格式中标识字段，在消息类型使用后就不能再更改。
-
-注意，范围1到15中的字段编号需要一个字节进行编码，包括字段编号和字段类型。范围16到2047的字段编号采用两个字节。因此，应该为经常使用的消息元素保留数字1到15的编号。切记为将来可能添加的经常使用的元素留出一些编号。
-
-你可以指定的最小字段数是1，最大的字段数是 $2^{29} -1$ ，即536,870,911。你不能使用19000到19999 `(FieldDescriptor::kFirstReservedNumber 到FieldDescriptor::kLastReservedNumber)`的编号，它们是预留给Protocol Buffers协议实现的。
-
-如果你在你的.proto文件中使用了预留的编号Protocol Buffers编译器就会报错。同样，你也不能使用任何之前保留的字段编号。
-
-#### Any
 
 #### 更新消息类型
 
@@ -373,7 +400,7 @@ repeated 字段的默认值为空(通常是适当语言中的空列表)。
 * Enum 在格式方面与 int32、 uint32、 int64和 uint64兼容(请注意，如果不适合，值将被截断)。但是要注意，当消息被反序列化时，客户端代码可能会区别对待它们: 例如，未被识别的 proto3 `enum`类型将保留在消息中，但是当消息被反序列化时，这种类型的表示方式依赖于语言。Int 字段总是保留它们的值。
 * 将单个值更改为**新**的 `oneof`成员是安全的，并且二进制兼容。如果确保没有代码一次设置多个字段，那么将多个字段移动到新的 `oneof`字段中可能是安全的。将任何字段移动到现有的字段中都是不安全的。
 
-### 定义服务
+### service
 
 如果希望将消息类型与 RPC (远程过程调用)系统一起使用，可以在 `.proto` 文件和 protocol buffer 编译器将用你选择的语言生成服务接口代码和存根。
 
@@ -568,6 +595,29 @@ demo
         ├── book_grpc.pb.go
         ├── price.pb.go
         └── price.proto
+```
+
+### [Makefile](https://github.com/STAR0903/note/blob/main/Makefile/Makefile.md)生成代码
+
+```makefile
+.PHONY: gen help
+
+PROTO_DIR=proto
+
+gen:
+	protoc \
+	--proto_path=$(PROTO_DIR) \
+	--go_out=$(PROTO_DIR) \
+	--go_opt=paths=source_relative \
+	--go-grpc_out=$(PROTO_DIR) \
+	--go-grpc_opt=paths=source_relative \
+	--grpc-gateway_out=$(PROTO_DIR) \
+	--grpc-gateway_opt=paths=source_relative \
+	$(shell find $(PROTO_DIR) -iname "*.proto")
+
+help:
+	@echo "make gen - 生成pb及grpc代码"
+
 ```
 
 # import
@@ -771,7 +821,7 @@ message Book {
 
 `oneof`字段类似于常规字段，只不过 `oneof`中的所有字段共享内存，而且最多可以同时设置一个字段。设置其中的任何成员都会自动清除所有其他成员。
 
-可以在 `oneof`中添加除了map字段和repeated字段外的任何类型的字段。
+可以在 `oneof`中添加除了 `map` 字段和 `repeated` 字段外的任何类型的字段。
 
 ### 画图示意
 
@@ -829,60 +879,20 @@ service Noticer{
 Go语言创建 `oneof`字段的client端示例代码。
 
 ```
-package main
-
-import (
-	"client/api"
-	"context"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"log"
-	"regexp"
-	"time"
-)
-
-const (
-	msg   = "star博客更新啦"
-	phone = "19566666666"
-	email = "1536666666@qq.com"
-)
-
-func main() {
-	// 从数据库获取粉丝信息：逻辑省略，直接设置常量
-	// 判断提醒方式
-	in := email
-	req := &api.NoticeReaderRequest{Msg: msg}
-
-	validPhone := regexp.MustCompile(`^1[3-9]\d{9}$`)
-	validEmail := regexp.MustCompile(`^[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(\.[a-zA-Z0-9_-]+)+$`)
-
-	if validPhone.MatchString(in) {
-		req.NoticeWay = &api.NoticeReaderRequest_Phone{Phone: in}
-	} else if validEmail.MatchString(in) {
-		req.NoticeWay = &api.NoticeReaderRequest_Email{Email: in}
-	} else {
-		log.Fatalf("error notice_way:%v", in)
-	}
-
-	// 连接到server端
-	conn, err := grpc.NewClient("127.0.0.1:8972", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect:%v", err)
-	}
-	defer conn.Close()
-	c := api.NewNoticerClient(conn)
-
-	// 执行RPC调用并打印收到的响应数据
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	res, err := c.NoticeReader(ctx, req)
-	if err != nil {
-		log.Fatalf("could not notice reader:%v", err)
-	}
-	log.Printf("res:%v", res.Msg)
-
+// 使用邮件通知的请求消息
+noticeReq := proto.NoticeReaderRequest{
+	Msg: "Your followee posted a new blog.",
+	NoticeWay: &proto.NoticeReaderRequest_Email{
+		Email: "123@xx.com",
+	},
 }
-
+// 使用短信通知的请求消息
+noticeReq2 := proto.NoticeReaderRequest{
+	Msg: "Your followee posted a new blog.",
+	NoticeWay: &proto.NoticeReaderRequest_Phone{
+		Phone: "123456789",
+	},
+}
 ```
 
 ##### server端代码
@@ -890,65 +900,21 @@ func main() {
 Go语言操作 `oneof`字段的server端示例代码。下面的代码中使用 `switch case`的方式，根据请求消息中的通知类型选择执行不同的业务逻辑。
 
 ```
-package main
-
-import (
-	"context"
-	"fmt"
-	"google.golang.org/grpc"
-	"log"
-	"net"
-	"server/api"
-)
-
-type server struct {
-	api.UnimplementedNoticerServer
+// 根据`NoticeWay`的不同而执行不同的操作
+switch v := noticeReq.NoticeWay.(type) {
+case *proto.NoticeReaderRequest_Email:
+	noticeWithEmail(v)
+case *proto.NoticeReaderRequest_Phone:
+	noticeWithPhone(v)
 }
 
-func (s *server) NoticeReader(ctx context.Context, in *api.NoticeReaderRequest) (res *api.NoticeReaderResponse, err error) {
-	// 判断是短信还是邮件的方式
-	switch in.NoticeWay.(type) {
-	case *api.NoticeReaderRequest_Phone:
-		res, err = noticeWithPhone(in)
-	case *api.NoticeReaderRequest_Email:
-		res, err = noticeWithEmail(in)
-	}
-	// 返回响应信息
-	return
+// 发送通知相关的功能函数
+func noticeWithEmail(in *proto.NoticeReaderRequest_Email) {
+	fmt.Printf("notice reader by email:%v\n", in.Email)
 }
 
-func noticeWithEmail(in *api.NoticeReaderRequest) (res *api.NoticeReaderResponse, err error) {
-	// 发送邮件逻辑；这里简单打印一下替代
-	fmt.Printf("send to email %v: %v\n", in.NoticeWay, in.Msg)
-	// 返回发送成功信息
-	msg := fmt.Sprintf("send to %v:success", in.NoticeWay)
-	res = &api.NoticeReaderResponse{Msg: msg}
-	return
-}
-
-func noticeWithPhone(in *api.NoticeReaderRequest) (res *api.NoticeReaderResponse, err error) {
-	// 发送短信逻辑；这里简单打印一下替代
-	fmt.Printf("send to phone %v: %v\n", in.NoticeWay, in.Msg)
-	// 返回发送成功信息
-	msg := fmt.Sprintf("send to %v:success", in.NoticeWay)
-	res = &api.NoticeReaderResponse{Msg: msg}
-	return
-}
-
-func main() {
-	// 监听端口
-	lis, err := net.Listen("tcp", ":8972")
-	if err != nil {
-		log.Fatalf("falied to listen:%v", err)
-	}
-	// 创建grpc服务器
-	s := grpc.NewServer()
-	// 注册服务
-	api.RegisterNoticerServer(s, &server{})
-	// 启动服务
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve:%v", err)
-	}
+func noticeWithPhone(in *proto.NoticeReaderRequest_Phone) {
+	fmt.Printf("notice reader by phone:%v\n", in.Phone)
 }
 ```
 
@@ -988,7 +954,7 @@ book.pb.go
 
 ![1744480027911](image/protobuf/1744480027911.png)
 
-wrappers.proto
+google\protobuf\wrappers.proto
 
 ![1744480083889](image/protobuf/1744480083889.png)
 
@@ -1001,13 +967,9 @@ wrappers.proto
 ```
 import "google.golang.org/protobuf/types/known/wrapperspb"
 
-func client() {
-	book = &api.Book{
-		Title:     "《百万》",
-		Price:     &wrapperspb.DoubleValue{Value: 12.2},
-		Inventory: &wrapperspb.Int64Value{Value: 600},
-		Content:   &wrapperspb.StringValue{Value: "回家"},
-	}
+book := proto.Book{
+	Title: "《xxx》",
+	Price: &wrapperspb.DoubleValue{Value: 9900},
 }
 ```
 
@@ -1016,18 +978,14 @@ func client() {
 WrapValue本质上类似于标准库sql中定义的 `sql.NullInt64`、`sql.NullString`，即将基本数据类型包装为一个结构体类型。在使用时通过判断某个字段是否为nil（空指针）来区分该字段是否被赋值。
 
 ```
-import "google.golang.org/protobuf/types/known/wrapperspb"
-
-func server() {
-	if book.Price == nil {
-		fmt.Println("该书没有设置价格...")
-	} else {
-		fmt.Println(book.Price.Value)
-	}
+if book.GetPrice() == nil {  
+	fmt.Println("book with no price")
+} else {
+	fmt.Printf("book with price:%v\n", book.GetPrice().GetValue())
 }
 ```
 
-# optional v3.15.0+
+# optional
 
 ### 基本介绍
 
@@ -1050,7 +1008,7 @@ book.pb.go
 
 ![1744481225118](image/protobuf/1744481225118.png)
 
-wrappers.proto
+google.golang.org\protobuf@v1.36.10\proto\wrappers.go
 
 ![1744481234243](image/protobuf/1744481234243.png)
 
@@ -1065,13 +1023,9 @@ wrappers.proto
 ```
 import "google.golang.org/protobuf/proto"
 
-func client2() {
-	book2 = &api.Book2{
-		Title:     "《what》",
-		Price:     proto.Float64(13.3),
-		Inventory: proto.Int64(577),
-		Content:   proto.String("wow"),
-	}
+book := proto.Book{
+	Title: "《xxx》",
+	Price: proto.Float64(66.6),
 }
 ```
 
@@ -1080,37 +1034,11 @@ func client2() {
 如果需要判断 `price`字段是否赋值，可以判断是否为 `nil`。
 
 ```
-import "google.golang.org/protobuf/proto"
-
-func server2() {
-	if book2.Inventory == nil {
-		fmt.Println("本书没有库存...")
-	} else {
-		fmt.Println(*book2.Inventory)
-	}
+if book.Price == nil {
+	fmt.Println("book with no price")
+} else {
+	fmt.Printf("book with price:%v\n", book.GetPrice())
 }
-```
-
-##### Makefile编译
-
-```
-.PHONY: gen help
-
-PROTO_DIR=proto
-
-gen:
-	protoc \
-	--proto_path=$(PROTO_DIR) \
-	--go_out=$(PROTO_DIR) \
-	--go_opt=paths=source_relative \
-	--go-grpc_out=$(PROTO_DIR) \
-	--go-grpc_opt=paths=source_relative \
-	--grpc-gateway_out=$(PROTO_DIR) \
-	--grpc-gateway_opt=paths=source_relative \
-	book.proto
-
-help:
-	@echo "make gen - 生成pb及grpc代码"
 ```
 
 # FieldMask
@@ -1157,17 +1085,19 @@ field_mask.proto
 
 我们通过 `paths`记录本次更新的字段路径，如果是嵌套的消息类型则通过 `x.y`的方式标识。
 
+实际上，被传递的是否更新的信息完全依托于你设置的 `paths`，在 `server`端代码的输出也可以确认这一点。
+
 ```
 import "google.golang.org/protobuf/types/known/fieldmaskpb"
 
 func client() {
 	// 记录更新的字段路径
 	paths := []string{"price", "type.name"}
-	updateReq = &api.UpdateBookRequest{
+	updateReq := &pb.UpdateBookRequest{
 		Op: "star",
-		Book: &api.Book{
-			Price: 112.2,
-			Type: &api.Book_Type{
+		Book: &pb.Book{
+			Price: proto.Float64(100),
+			Type: &pb.Type{
 				Name: "百科",
 			},
 		},
@@ -1200,6 +1130,11 @@ func server() {
 	fieldmask_utils.StructToMap(mask, updateReq.Book, bookDst)
 	fmt.Println(bookDst)
 }
+```
+
+```
+E:\GOcode\gRPC\protobuf>go run ./
+map[Price:100 Type:map[Name:百科]]
 ```
 
 # 管理 protobuf

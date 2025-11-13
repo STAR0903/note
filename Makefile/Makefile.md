@@ -180,7 +180,7 @@ make: `clean' is up to date.
 ```
 #Makefile
 
-.PHONY: clean all build run
+.PHONY: clean 
 
 BINARY_NAME=main.exe
 
