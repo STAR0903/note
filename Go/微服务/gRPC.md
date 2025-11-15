@@ -8,6 +8,8 @@ RPC是一种服务器-客户端（Client/Server）模式，经典实现是一个
 
 RPC是为了解决类似远程、跨内存空间的函数/方法的调用而产生的。
 
+![1762846217134](image/gRPC/1762846217134.png)
+
 要实现RPC就需要解决以下三个问题：
 
 * 如何确定要执行的函数？ 在本地调用中，函数主体通过函数指针函数指定，然后调用 add 函数，编译器通过函数指针函数自动确定 add 函数在内存中的位置。但是在 RPC 中，调用不能通过函数指针完成，因为它们的内存地址可能完全不同。因此，调用方和被调用方都需要维护一个{ function <-> ID }映射表，以确保调用正确的函数。
@@ -48,19 +50,21 @@ RPC 让远程调用就像本地调用一样，其调用过程可拆解为以下�
 
 使用gRPC， 我们可以一次性的在一个 `.proto`文件中定义服务并使用任何支持它的语言去实现客户端和服务端，反过来，它们可以应用在各种场景中，从Google的服务器到你自己的平板电脑—— gRPC帮你解决了不同语言及环境间通信的复杂性。使用 `protocol buffers`还能获得其他好处，包括高效的序列化，简单的IDL以及容易进行接口更新。总之一句话，使用gRPC能让我们更容易编写跨语言的分布式代码。
 
-IDL（Interface description language）是指接口描述语言，是用来描述软件组件接口的一种计算机语言，是跨平台开发的基础。IDL通过一种中立的方式来描述接口，使得在不同平台上运行的对象和用不同语言编写的程序可以相互通信交流；比如，一个组件用C++写成，另一个组件用Go写成。
+> IDL（Interface description language）是指接口描述语言，是用来描述软件组件接口的一种计算机语言，是跨平台开发的基础。IDL通过一种中立的方式来描述接口，使得在不同平台上运行的对象和用不同语言编写的程序可以相互通信交流；比如，一个组件用C++写成，另一个组件用Go写成。
 
-### [前置准备](https://github.com/STAR0903/note/blob/main/Go/%E5%BE%AE%E6%9C%8D%E5%8A%A1/protobuf.md)
+### 前置准备
 
-学习gRPC之前要下载gRPC、protobuf和相关插件，还要了解protobuf的基本语法。
+学习gRPC之前要下载gRPC、protobuf和相关插件，还要[了解protobuf的基本语法](https://github.com/STAR0903/note/blob/main/Go/%E5%BE%AE%E6%9C%8D%E5%8A%A1/protobuf.md)。
 
 ### 快速入门
+
+gRPC开发分三步：编写 `.proto`文件  --->  `protoc` 命令生成代码  --->  编写业务逻辑代码
 
 ##### 编写proto代码
 
 `Protocol Buffers`是一种与语言无关，平台无关的可扩展机制，用于序列化结构化数据。使用 `Protocol Buffers`可以一次定义结构化的数据，然后可以使用特殊生成的源代码轻松地在各种数据流中使用各种语言编写和读取结构化数据。
 
-```
+```protobuf
 // 版本声明，使用Protocol Buffers v3版本
 syntax = "proto3"; 
 
@@ -92,13 +96,13 @@ message HelloResponse {
 
 再新建一个 `pb`文件夹，将上面的 proto 文件保存为 `hello.proto`，将 `go_package`按如下方式修改。
 
-```
+```protobuf
 option go_package = "hello_server/pb";
 ```
 
 此时，项目的目录结构为：
 
-```
+```bash
 hello_server
 ├── go.mod
 ├── go.sum
@@ -109,21 +113,13 @@ hello_server
 
 在项目根目录下执行以下命令，根据 `hello.proto`生成 go 源码文件。
 
-```
-protoc --go_out=. --go_opt=paths=source_relative \
---go-grpc_out=. --go-grpc_opt=paths=source_relative \
-pb/hello.proto
-```
-
-**注意**：如果你的终端不支持 `\`符（例如某些同学的Windows），那么你就复制粘贴下面不带 `\`的命令执行。
-
-```
+```bash
 protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pb/hello.proto
 ```
 
 生成后的go源码文件会保存在pb文件夹下。
 
-```
+```bash
 hello_server
 ├── go.mod
 ├── go.sum
@@ -136,7 +132,7 @@ hello_server
 
 将下面的内容添加到 `hello_server/main.go`中。
 
-```
+```go
 package main
 
 import (
@@ -184,27 +180,19 @@ func main() {
 
 再新建一个 `pb`文件夹，将上面的 proto 文件保存为 `hello.proto`，将 `go_package`按如下方式修改。
 
-```
+```protobuf
 option go_package = "hello_client/pb";
 ```
 
 在项目根目录下执行以下命令，根据 `hello.proto`在 `http_client`项目下生成 go 源码文件。
 
-```
-protoc --go_out=. --go_opt=paths=source_relative \
---go-grpc_out=. --go-grpc_opt=paths=source_relative \
-pb/hello.proto
-```
-
-**NOTE:**如果你的终端不支持 `\`符（例如某些同学的Windows），那么你就复制粘贴下面不带 `\`的命令执行。
-
-```
+```bash
 protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative pb/hello.proto
 ```
 
 此时，项目的目录结构为：
 
-```
+```bash
 http_client
 ├── go.mod
 ├── go.sum
@@ -217,7 +205,7 @@ http_client
 
 在 `http_client/main.go`文件中按下面的代码调用 `http_server`提供的 `SayHello` RPC服务。
 
-```
+```go
 package main
 
 import (
@@ -268,7 +256,7 @@ func main() {
 
 在上面的示例中，客户端发起了一个RPC请求到服务端，服务端进行业务处理并返回响应给客户端，这是gRPC最基本的一种工作方式（Unary RPC）。除此之外，依托于HTTP2，gRPC还支持流式RPC（Streaming RPC）。
 
-```
+```go
 type ServerStream interface {
 	// ... 省略部分metadata内容
 
@@ -303,7 +291,7 @@ type ServerStream interface {
 }
 ```
 
-```
+```go
 type ClientStream interface {
 	// ... 省略部分metadata内容
 
@@ -354,7 +342,7 @@ type ClientStream interface {
 
 客户端发出一个RPC请求，服务端与客户端之间建立一个单向的流，服务端可以向流中写入多个响应消息，最后主动关闭流；而客户端需要监听这个流，不断获取响应直到流关闭。应用场景举例：客户端向服务端发送一个股票代码，服务端就把该股票的实时数据源源不断的返回给客户端。
 
-```
+```go
 // ServerStreamingServer 
 // ServerStreamingServer 表示服务端流式 RPC（单请求，多响应）的服务端接口。
 // 泛型参数 Res 为响应消息类型，用于生成的代码。
@@ -401,7 +389,7 @@ type ServerStreamingClient[Res any] interface {
 
 1.定义服务
 
-```
+```protobuf
 // 服务端返回流式数据
 rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
 ```
@@ -410,7 +398,7 @@ rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
 
 2.服务端需要实现 `LotsOfReplies` 方法。
 
-```
+```go
 func (s *server) LotsOfReplies(in *pb.HelloRequest, stream pb.Greeter_LotsOfRepliesServer) error {
 	words := []string{
 		"你好",
@@ -434,7 +422,7 @@ func (s *server) LotsOfReplies(in *pb.HelloRequest, stream pb.Greeter_LotsOfRepl
 
 3.客户端调用 `LotsOfReplies` 并将收到的数据依次打印出来。
 
-```
+```go
 func runLotsOfReplies(c pb.GreeterClient) {
 	// server端流式
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -460,7 +448,7 @@ func runLotsOfReplies(c pb.GreeterClient) {
 
 执行程序后会得到如下输出结果。
 
-```
+```bash
 2025/04/14 23:13:09 res:你好,star
 2025/04/14 23:13:09 res:hello,star
 2025/04/14 23:13:09 res:こんにちは,star
@@ -471,7 +459,7 @@ func runLotsOfReplies(c pb.GreeterClient) {
 
 客户端传入多个请求对象，服务端返回一个响应结果。典型的应用场景举例：物联网终端向服务器上报数据、大数据流式计算等。
 
-```
+```go
 // ClientStreamingServer 
 // ClientStreamingServer 表示客户端流式 RPC（多请求，单响应）的服务端接口。
 // 泛型参数：
@@ -530,7 +518,7 @@ type ClientStreamingClient[Req any, Res any] interface {
 
 1.定义服务
 
-```
+```protobuf
 // 客户端发送流式数据
 rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
 ```
@@ -539,7 +527,7 @@ rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
 
 2.服务端实现 `LotsOfGreetings`方法。
 
-```
+```go
 // LotsOfGreetings 接收流式数据
 func (s *server) LotsOfGreetings(stream pb.Greeter_LotsOfGreetingsServer) error {
 	reply := "hello:"
@@ -557,7 +545,7 @@ func (s *server) LotsOfGreetings(stream pb.Greeter_LotsOfGreetingsServer) error 
 
 3.客户端调用 `LotsOfGreetings`方法，向服务端发送流式请求数据，接收返回值并打印。
 
-```
+```go
 func runLotsOfGreetings(c pb.GreeterClient) {
 
 	ctx, cancle := context.WithTimeout(context.Background(), time.Second)
@@ -585,7 +573,7 @@ func runLotsOfGreetings(c pb.GreeterClient) {
 
 执行上述函数将得到如下数据结果。
 
-```
+```bash
 2025/04/14 23:13:09 hello: star for qaq www
 ```
 
@@ -593,7 +581,7 @@ func runLotsOfGreetings(c pb.GreeterClient) {
 
 双向流式RPC即客户端和服务端均为流式的RPC，能发送多个请求对象也能接收到多个响应对象。典型应用示例：聊天应用等。
 
-```
+```go
 // BidiStreamingServer 
 // BidiStreamingServer 表示双向流式 RPC（多请求，多响应）的服务端接口。
 // 泛型参数：
@@ -656,7 +644,7 @@ type BidiStreamingClient[Req any, Res any] interface {
 
 1.定义服务
 
-```
+```protobuf
 // 双向流式数据
 rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
 ```
@@ -665,7 +653,7 @@ rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
 
 2.服务端实现 `BidiHello`方法。
 
-```
+```go
 func (s *server) BidiHello(stream pb.Greeter_BidiHelloServer) error {
 	// 读取请求-->返回响应
 	for {
@@ -685,7 +673,7 @@ func (s *server) BidiHello(stream pb.Greeter_BidiHelloServer) error {
 
 3.客户端调用 `BidiHello`方法，一边从终端获取输入的请求数据发送至服务端，一边从服务端接收流式响应。
 
-```
+```go
 func runBidiHello(c pb.GreeterClient) {
 	ctx, cancle := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancle()
@@ -735,7 +723,7 @@ func runBidiHello(c pb.GreeterClient) {
 
 将服务端和客户端的代码都运行起来，就可以实现简单的预言程序了。
 
-```
+```bash
 www
 To www: 当冬日的河流向北，石头上将长出第三只眼睛。记住：流动的从不只是水。
 qaq
@@ -783,7 +771,7 @@ metadata中的键是大小写不敏感的，由字母、数字和特殊字符 `-
 
 metadata 类型定义如下：
 
-```
+```go
 type MD map[string][]string
 ```
 
@@ -795,13 +783,13 @@ type MD map[string][]string
 
 第一种方法是使用函数 `New` 基于 `map[string]string` 创建元数据:
 
-```
+```go
 md := metadata.New(map[string]string{"key1": "val1", "key2": "val2"})
 ```
 
 另一种方法是使用 `Pairs`。具有相同键的值将合并到一个列表中:
 
-```
+```go
 md := metadata.Pairs(
     "key1", "val1",
     "key1", "val1-2", 
@@ -817,11 +805,22 @@ md := metadata.Pairs(
 
 要在元数据中存储二进制数据值，只需在密钥中添加“-bin”后缀。在创建元数据时，将对带有“-bin”后缀键的值进行(base64) 编码，收到后会进行解码。
 
-```
+```go
 md := metadata.Pairs(
     "key", "string value",
     "key-bin", string([]byte{96, 102}), 
 )
+```
+
+##### 从请求上下文中获取元数据
+
+可以使用 `FromIncomingContext` 可以从RPC请求的上下文中获取元数据:
+
+```go
+func (s *server) SomeRPC(ctx context.Context, in *pb.SomeRequest) (*pb.SomeResponse, err) {
+    md, ok := metadata.FromIncomingContext(ctx)
+    // do something with metadata
+}
 ```
 
 ##### 客户端
@@ -836,18 +835,18 @@ md := metadata.Pairs(
 
 无论context中是否已经有元数据都可以使用这个方法。如果先前没有元数据，则添加元数据; 如果context中已经存在元数据，则将 kv 对合并进去。
 
-```
+```go
 ctx = metadata.AppendToOutgoingContext(ctx, "test", "you get it")
 ```
 
-```
+```go
 ctx = metadata.AppendToOutgoingContext(ctx, "test", "you get it")
 ctx = metadata.AppendToOutgoingContext(ctx, "test2", "you can get test")
 ```
 
 服务端打印结果如下：
 
-```
+```bash
 2025/04/15 22:43:17 metatdata:map[:authority:[127.0.0.1:8972] content-type:[application/grpc] test:[you get it] user-agent:[grpc-go/1.71.1]]
 
 2025/04/15 22:59:01 metatdata:map[:authority:[127.0.0.1:8972] content-type:[application/grpc] test:[you get it] test2:[you can get test] user-agent:[grpc-go/1.71.1]]
@@ -859,14 +858,14 @@ ctx = metadata.AppendToOutgoingContext(ctx, "test2", "you can get test")
 
 1.创建带有 metadata 的context
 
-```
+```go
 md := metadata.Pairs("test", "first creat")
 ctx = metadata.NewOutgoingContext(ctx, md)
 ```
 
 2.覆盖之前附加的元数据，创建一个新的带有传出元数据的上下文
 
-```
+```go
 md := metadata.Pairs("test", "first creat")
 ctx = metadata.NewOutgoingContext(ctx, md)
 md2 := metadata.Pairs("test", "cover")
@@ -875,14 +874,14 @@ ctx = metadata.NewOutgoingContext(ctx, md2)
 
 3.使用 `NewOutgoingContext` 添加metadata
 
-```
+```go
 // Join 将任意数量的 mds 合并成一个 MD
 func Join(mds ...MD) MD  
 // FromOutgoingContext 返回 ctx 中的传出元数据（如果存在）
 func FromOutgoingContext(ctx context.Context) (MD, bool)   
 ```
 
-```
+```go
 md := metadata.Pairs("test", "first creat")
 ctx = metadata.NewOutgoingContext(ctx, md)
 oldMD, _ := metadata.FromOutgoingContext(ctx)
@@ -892,7 +891,7 @@ ctx = metadata.NewOutgoingContext(ctx, metadata.Join(oldMD, newMD))
 
 4.使用 `AppendToOutgoingContext` 添加metadata
 
-```
+```go
 md := metadata.Pairs("test", "first creat")
 ctx = metadata.NewOutgoingContext(ctx, md)
 ctx = metadata.AppendToOutgoingContext(ctx, "test2", "try to add")
@@ -900,7 +899,7 @@ ctx = metadata.AppendToOutgoingContext(ctx, "test2", "try to add")
 
 服务端打印结果如下：
 
-```
+```bash
 2025/04/15 23:08:05 metatdata:map[:authority:[127.0.0.1:8972] content-type:[application/grpc] test:[first creat] user-agent:[grpc-go/1.71.1]]  
 
 2025/04/15 23:15:35 metatdata:map[:authority:[127.0.0.1:8972] content-type:[application/grpc] test:[cover] user-agent:[grpc-go/1.71.1]]  
@@ -912,7 +911,7 @@ ctx = metadata.AppendToOutgoingContext(ctx, "test2", "try to add")
 
 **普通调用 && 流式调用**
 
-```
+```go
 // 发起普通RPC请求
 response, err := client.SomeRPC(ctx, someRequest)
 
@@ -922,11 +921,17 @@ stream, err := client.SomeStreamingRPC(ctx)
 
 ###### 接收元数据
 
+客户端可以接收的元数据包括header和trailer。
+
+> trailer可以用于服务器希望在处理请求后给客户端发送任何内容，例如在流式RPC中只有等所有结果都流到客户端后才能计算出负载信息，这时候就不能使用headers（header在数据之前，trailer在数据之后）。
+
+引申：[HTTP trailer](https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/Trailer)
+
 **普通调用**
 
 可以使用 [CallOption](https://godoc.org/google.golang.org/grpc#CallOption) 中的 [Header](https://godoc.org/google.golang.org/grpc#Header) 和 [Trailer](https://godoc.org/google.golang.org/grpc#Trailer) 函数来获取普通RPC调用发送的header和trailer。
 
-```
+```go
 var header, trailer metadata.MD 
 r, err := client.SomeRPC(
     ctx,
@@ -940,7 +945,7 @@ r, err := client.SomeRPC(
 
 使用接口 [ClientStream](https://godoc.org/google.golang.org/grpc#ClientStream) 中的 `Header` 和 `Trailer` 函数，可以从返回的流中接收 Header 和 Trailer。
 
-```
+```go
 // Header 获取从服务端接收的头部元数据（如果存在）。
 // 若元数据尚未就绪，该方法会阻塞。如果返回的元数据和错误均为 nil，
 // 表示流在未发送头部的情况下终止，此时应通过 RecvMsg 获取状态信息。
@@ -953,7 +958,7 @@ Header() (metadata.MD, error)
 Trailer() metadata.MD
 ```
 
-```
+```go
 stream, err := client.SomeStreamingRPC(ctx)
 
 // 接收 header
@@ -971,7 +976,7 @@ trailer := stream.Trailer()
 
 在普通调用中，服务器可以调用 [grpc](https://godoc.org/google.golang.org/grpc) 模块中的 [SendHeader/SetHeader](https://godoc.org/google.golang.org/grpc#SendHeader) 和 [SetTrailer](https://godoc.org/google.golang.org/grpc#SetTrailer) 函数向客户端发送header和trailer。
 
-```
+```go
 // SendHeader 
 func SendHeader(ctx context.Context, md metadata.MD) error
 // SendHeader 发送头部元数据。调用规则：
@@ -1014,7 +1019,7 @@ func SetTrailer(ctx context.Context, md metadata.MD) error
 
 这两个函数将context作为第一个参数。它应该是 RPC 处理程序的上下文或从中派生的上下文。
 
-```
+```go
 func (s *server) SomeRPC(ctx context.Context, in *pb.someRequest) (*pb.someResponse, error) {
     // 创建和发送 header
     header := metadata.Pairs("header-key", "val")
@@ -1029,7 +1034,7 @@ func (s *server) SomeRPC(ctx context.Context, in *pb.someRequest) (*pb.someRespo
 
 对于流式调用，可以使用接口 [ServerStream](https://godoc.org/google.golang.org/grpc#ServerStream) 中的 `SendHeader或者SetHeader` 和 `SetTrailer` 函数发送header和trailer。
 
-```
+```go
 // SetHeader 设置头部元数据。该方法可被多次调用。
 // 多次调用时，所有提供的元数据将被合并。
 // 在以下任一情况发生时，所有元数据将被发送：
@@ -1048,7 +1053,7 @@ SendHeader(metadata.MD) error
 SetTrailer(metadata.MD)
 ```
 
-```
+```go
 func (s *server) SomeStreamingRPC(stream pb.Service_SomeStreamingRPCServer) error {
     // 创建和发送 header
     header := metadata.Pairs("header-key", "val")
@@ -1073,10 +1078,76 @@ func (s *server) SomeRPC(ctx context.Context, in *pb.someRequest) (*pb.someRespo
 
 **流式调用**
 
-```
+```go
 func (s *server) SomeStreamingRPC(stream pb.Service_SomeStreamingRPCServer) error {
     md, ok := metadata.FromIncomingContext(stream.Context()) 
 }
+```
+
+##### 代码示例
+
+这里以更加常用的普通调用为例。
+
+###### 客户端
+
+```go
+func runSayHelloWithMetadata(c proto.GreeterClient) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	// 设置要发送的元数据
+	md := metadata.Pairs(
+		"token", "app-test-star",
+		"request_id", "10001",
+	)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+	// 发送请求 && 接收元数据
+	var header, trailer metadata.MD
+	res, err := c.SayHello(
+		ctx,
+		&proto.HelloRequest{Name: *name},
+		grpc.Header(&header),
+		grpc.Trailer(&trailer),
+	)
+	if err != nil {
+		log.Fatalf("failed to Greet: %v", err)
+	}
+	log.Printf("header:%v", header)
+	log.Printf("reply: %s", res.Reply)
+	log.Printf("trailer:%s", trailer)
+}
+```
+
+###### 服务端
+
+```go
+func (s *server) SayHello(ctx context.Context, request *proto.HelloRequest) (*proto.HelloResponse, error) {
+	// 接收元数据
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.DataLoss, "SayHello: failed to get metadata")
+	}
+	val := md.Get("token")
+	if len(val) < 1 || val[0] != "app-test-star" {
+		return nil, status.Error(codes.Unauthenticated, "SayHello: 认证失败")
+	}
+	// 设置header
+	header := metadata.New(map[string]string{"msg": "token obtained"})
+	grpc.SetHeader(ctx, header)
+	// 通过defer设置trailer
+	defer func() {
+		trailer := metadata.Pairs("time", time.Now().String())
+		grpc.SetTrailer(ctx, trailer)
+	}()
+	// 返回响应
+	reply := fmt.Sprintf("Hello, %s", request.Name)
+	return &proto.HelloResponse{Reply: reply}, nil
+}
+```
+
+```bash
+2025/11/15 17:50:40 header:map[content-type:[application/grpc] msg:[token obtained]]
+2025/11/15 17:50:40 reply: Hello, star
+2025/11/15 17:50:40 trailer:map[time:[2025-11-15 17:50:40.637336 +0800 CST m=+7.681770601]]
 ```
 
 ### 错误处理
@@ -1174,7 +1245,7 @@ for _, d := range s.Details() {...}
 
 使用map存储每个name的请求次数，超过1次则返回错误，并且记录错误详情。
 
-```
+```go
 package main
 
 import (
@@ -1257,7 +1328,7 @@ func main() {
 
 当服务端返回错误时，尝试从错误中获取detail信息。
 
-```
+```go
 package main
 
 import (
@@ -1331,7 +1402,7 @@ func runSayHello(c pb.GreeterClient) {
 
 **输出示例**
 
-```
+```bash
 E:\GOcode\gRPC\hello\client
 go run ./
 2025/04/16 15:14:06 res:hello,star
@@ -1495,7 +1566,7 @@ gRPC 为在每个 ClientConn/Server 基础上实现和安装拦截器提供了�
 
 ##### 客户端端拦截器
 
-**普通拦截器/一元拦截器**
+###### 普通拦截器/一元拦截器
 
 ```
 type UnaryClientInterceptor func(ctx context.Context, method string, req, reply any, cc *ClientConn, invoker UnaryInvoker, opts ...CallOption) error
@@ -1503,7 +1574,7 @@ type UnaryClientInterceptor func(ctx context.Context, method string, req, reply 
 
 [UnaryClientInterceptor](https://godoc.org/google.golang.org/grpc#UnaryClientInterceptor) 用于在客户端拦截一元 RPC 的执行。一元拦截器可通过 `WithUnaryInterceptor()` 或 `WithChainUnaryInterceptor()` 作为 DialOption，在创建 ClientConn 时指定。当在 ClientConn 上设置一元拦截器后，gRPC 会将所有一元 RPC 调用委托给该拦截器， **拦截器的职责是通过调用 `invoker` 来完成该 RPC 的处理** 。
 
-**流拦截器**
+###### 流拦截器
 
 ```
 type StreamClientInterceptor func(ctx context.Context, desc *StreamDesc, cc *ClientConn, method string, streamer Streamer, opts ...CallOption) (ClientStream, error)
@@ -1519,7 +1590,7 @@ StreamClientInterceptor 可以返回自定义的 ClientStream 以拦截所有 I/
 
 服务器端拦截器与客户端类似，但提供的信息略有不同。
 
-**普通拦截器/一元拦截器**
+###### 普通拦截器/一元拦截器
 
 ```
 type UnaryServerInterceptor func(ctx context.Context, req any, info *UnaryServerInfo, handler UnaryHandler) (resp any, err error)
@@ -1527,7 +1598,7 @@ type UnaryServerInterceptor func(ctx context.Context, req any, info *UnaryServer
 
 [UnaryServerInterceptor](https://godoc.org/google.golang.org/grpc#UnaryServerInterceptor) 是一个函数类型，用于在服务器端拦截一元 RPC 的执行。其中 info 参数包含了该 RPC 的所有信息（拦截器可基于这些信息进行操作），handler 是对服务方法实现的封装。拦截器的职责是通过调用 handler 来完成该 RPC 的处理。
 
-**流拦截器**
+###### 流拦截器
 
 ```
 type StreamServerInterceptor func(srv any, ss ServerStream, info *StreamServerInfo, handler StreamHandler) error
