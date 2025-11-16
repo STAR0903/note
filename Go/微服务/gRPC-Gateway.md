@@ -273,7 +273,7 @@ curl -X POST -k http://localhost:8080/v1/add -d "{\"x\":22.2,\"y\":44.4}"
 
 因为我们的示例中没有启用 TLS加密通信，所以这里使用 `h2c`包实现对HTTP/2的支持。h2c 协议是 HTTP/2的非 TLS 版本。
 
-```
+```go
 func ListeningOnSamePorts() {
 	// 监听
 	lis, err := net.Listen("tcp", ":8972")
