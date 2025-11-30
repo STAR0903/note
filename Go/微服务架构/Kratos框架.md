@@ -2,7 +2,7 @@
 
 Kratos 一套轻量级 Go 微服务框架，包含大量微服务相关框架及工具。
 
-进一步学习：[github]([https://github.com/go-kratos/kratos]())      [官方文档]([https://go-kratos.dev/]())
+进一步学习：[github](https://github.com/go-kratos/kratos)      [官方文档](https://go-kratos.dev/)
 
 # 快速开始
 
@@ -970,9 +970,9 @@ func errorEncoder(w http.ResponseWriter, r *http.Request, err error) {
 opts = append(opts, http.ResponseEncoder(responseEncoder), http.ErrorEncoder(errorEncoder))
 ```
 
-### [自定义错误状态码枚举](https://go-kratos.dev/docs/component/errors)
+# [错误处理](https://go-kratos.dev/docs/component/errors)
 
-##### 安装工具
+### 安装工具
 
 安装生成错误状态码代码的工具
 
@@ -980,7 +980,7 @@ opts = append(opts, http.ResponseEncoder(responseEncoder), http.ErrorEncoder(err
 go install github.com/go-kratos/kratos/cmd/protoc-gen-go-errors/v2@latest
 ```
 
-##### 错误定义
+### 错误定义
 
 定义错误码 proto 文件：`api/bubble/v1/todo_error.proto`
 
@@ -1010,11 +1010,9 @@ enum ErrorReason {
 
 * 当枚举组没有配置缺省错误码时，当前枚举组的没有配置错误码的枚举值会被忽略
 * 当整个枚举组都没配置错误码时，当前枚举组会被忽略
-* 错误码的取值范围应该在 `0 < code <= 600` 之间, 超出范围将抛出异常
+* 错误码的取值范围应该在 `0 < code <= 600` 之间, 超出范围将抛出异常生成代码
 
-##### 生成代码
-
-生成错误相关Go代码
+### 生成错误相关Go代码
 
 ```bash
 protoc --proto_path=. \
@@ -1024,7 +1022,7 @@ protoc --proto_path=. \
     api/bubble/v1/todo_error.proto
 ```
 
-##### 使用示例
+### 使用示例
 
 ```go
 func (t todoRepo) FindByID(ctx context.Context, id int64) (*biz.Todo, error) {
@@ -1068,7 +1066,9 @@ log.Warn("warn")
 
 # [中间件](https://go-kratos.dev/docs/component/middleware/overview)
 
-### 生效顺序
+### 基本介绍
+
+##### 生效顺序
 
 一个请求进入时的处理顺序为 Middleware 注册的顺序，而响应返回的处理顺序为注册顺序的倒序，即先进后出(FILO)。
 
@@ -1088,7 +1088,7 @@ REQUEST  │ │ │ │  YOUR   │ │││  RESPONSE
          └───────────────────┘
 ```
 
-### 原理
+##### 执行原理
 
 ```go
 // Middleware 自定义中间件
@@ -1119,3 +1119,265 @@ var opts = []http.ServerOption{
 	),
 }
 ```
+
+### [参数校验]()
+
+##### [约束规则](https://github.com/bufbuild/protoc-gen-validate?tab=readme-ov-file#constraint-rules)
+
+`ignore_empty`：当字段为默认值（如 0、空字符串、空列表等）时，跳过所有验证。
+
+###### 数值类型（Numerics）
+
+| 规则类型         | 字段示例                                                                     | 说明                                   |
+| ---------------- | ---------------------------------------------------------------------------- | -------------------------------------- |
+| `const`        | `float x = 1 [(validate.rules).float.const = 1.23];`                       | 值必须**精确等于**指定值         |
+| `lt`           | `int32 x = 1 [(validate.rules).int32.lt = 10];`                            | 值必须 < 指定值                       |
+| `lte`          | `int32 x = 1 [(validate.rules).int32.lte = 10];`                           | 值必须 ≤ 指定值                       |
+| `gt`           | `uint64 x = 1 [(validate.rules).uint64.gt = 20];`                          | 值必须 > 指定值                        |
+| `gte`          | `uint64 x = 1 [(validate.rules).uint64.gte = 20];`                         | 值必须 ≥ 指定值                       |
+| 范围组合         | `fixed32 x = 1 [(validate.rules).fixed32 = {gte:30, lt: 40}];`             | 值 ∈ [30, 40)                         |
+| 反向范围         | `double x = 1 [(validate.rules).double = {lt:30, gte:40}];`                | 值 ∉ [30, 40)（即 x < 30 或 x ≥ 40） |
+| `in`           | `uint32 x = 1 [(validate.rules).uint32 = {in: [1,2,3]}];`                  | 值必须在列表中                         |
+| `not_in`       | `float x = 1 [(validate.rules).float = {not_in: [0, 0.99]}];`              | 值不能在列表中                         |
+| `ignore_empty` | `uint32 x = 1 [(validate.rules).uint32 = {ignore_empty: true, gte: 200}];` | 若值为默认值（0），跳过验证            |
+
+> 支持类型：`float`, `double`, `int32`, `int64`, `uint32`, `uint64`, `sint32`, `sint64`, `fixed32`, `fixed64`, `sfixed32`, `sfixed64`
+
+###### 布尔类型（Bools）
+
+| 规则      | 示例                                                 | 说明                           |
+| --------- | ---------------------------------------------------- | ------------------------------ |
+| `const` | `bool x = 1 [(validate.rules).bool.const = true];` | 必须等于 `true` 或 `false` |
+
+###### 字符串类型（Strings）
+
+| 规则                          | 示例                                                      | 说明                                        |
+| ----------------------------- | --------------------------------------------------------- | ------------------------------------------- |
+| `const`                     | `string x = 1 [(validate.rules).string.const = "foo"];` | 精确匹配字符串                              |
+| `len`                       | `string x = 1 [(validate.rules).string.len = 5];`       | **字符数** 必须等于 5（Unicode 码点） |
+| `min_len` / `max_len`     | `min_len: 3, max_len: 10`                               | 字符数范围（含边界）                        |
+| `min_bytes` / `max_bytes` | `max_bytes: 15`                                         | **字节数** 范围                       |
+| `pattern`                   | `pattern = "(?i)^[0-9a-f]+$"`                           | RE2 正则匹配（无需 `/ /` 分隔符）         |
+| `prefix`                    | `prefix = "foo"`                                        | 必须以指定字符串开头                        |
+| `suffix`                    | `suffix = "bar"`                                        | 必须以指定字符串结尾                        |
+| `contains`                  | `contains = "baz"`                                      | 必须包含子串                                |
+| `not_contains`              | `not_contains = "baz"`                                  | **不能**包含子串                      |
+| `in` / `not_in`           | `in: ["foo", "bar"]`                                    | 白名单/黑名单                               |
+| `ignore_empty`              | `ignore_empty: true, len: 2`                            | 空字符串时不校验                            |
+| Well-known 格式               |                                                           |                                             |
+| `email`                     | `email = true`                                          | 符合 RFC 5322 邮箱格式                      |
+| `address`                   | `address = true`                                        | 有效 IP 或主机名                            |
+| `hostname`                  | `hostname = true`                                       | 符合 RFC 1034 主机名                        |
+| `ip`                        | `ip = true`                                             | IPv4 或 IPv6 地址                           |
+| `ipv4` / `ipv6`           | `ipv4 = true`                                           | 仅 IPv4 / IPv6                              |
+| `uri`                       | `uri = true`                                            | 符合 RFC 3986 的绝对 URI                    |
+| `uri_ref`                   | `uri_ref = true`                                        | URI 引用（绝对或相对）                      |
+| `uuid`                      | `uuid = true`                                           | RFC 4122 UUID                               |
+| `well_known_regex`          | `HTTP_HEADER_NAME`                                      | 内置标准正则（如 HTTP 头名/值）             |
+| `strict`                    | `strict: false`                                         | 是否严格（如禁用 `\r\n\0`）               |
+
+###### 字节数组（Bytes）
+
+| 规则                                 | 示例                                        | 说明                                                           |
+| ------------------------------------ | ------------------------------------------- | -------------------------------------------------------------- |
+| `const`                            | `const = "foo"` 或 `"\xf0\x90\x28\xbc"` | 精确匹配字节序列（用字符串表示）                               |
+| `len`, `min_len`, `max_len`    | `len = 3`                                 | **字节数** 限制                                          |
+| `pattern`                          | `pattern = "^[\x00-\x7F]+$"`              | RE2 匹配（ASCII 字节）                                         |
+| `prefix`, `suffix`, `contains` | `prefix = "\x99"`                         | 指定字节前缀/后缀/包含                                         |
+| `in` / `not_in`                  | `in: ["foo", "bar"]`                      | 白名单/黑名单（字符串形式）                                    |
+| `ignore_empty`                     | `ignore_empty: true`                      | 空字节跳过验证                                                 |
+| Well-known 格式                      |                                             |                                                                |
+| `ip` / `ipv4` / `ipv6`         | `ipv4 = true`                             | 以**字节形式** 表示的 IP 地址（如 `\xC0\xA8\x00\x01`） |
+
+###### 枚举（Enums）
+
+> 示例枚举：
+
+```proto
+enum State {
+  INACTIVE = 0;
+  PENDING = 1;
+  ACTIVE = 2;
+}
+```
+
+| 规则                | 示例                    | 说明                              |
+| ------------------- | ----------------------- | --------------------------------- |
+| `const`           | `const = 2`           | 必须等于指定数值（如 ACTIVE = 2） |
+| `defined_only`    | `defined_only = true` | 值必须在枚举定义中（防止非法值）  |
+| `in` / `not_in` | `in: [0,2]`           | 仅允许 INACTIVE 或 ACTIVE         |
+| `not_in: [1]`     | 禁止 PENDING            |                                   |
+
+> 注意：所有值使用 **int32 数值**，而非名称
+
+###### 消息类型（Messages）
+
+| 规则         | 示例                             | 说明                                       |
+| ------------ | -------------------------------- | ------------------------------------------ |
+| 递归验证     | `Person x = 1;`                | 若 `Person` 启用 PGV，则自动递归验证     |
+| `skip`     | `skip = true`                  | 跳过该消息字段的验证                       |
+| `required` | `required = true`              | 字段**不能未设置**（即使为可选字段） |
+| 组合         | `{required: true, skip: true}` | 必须设置，但不验证其内容                   |
+
+###### 重复字段（Repeated）
+
+| 规则                          | 示例                        | 说明                                              |
+| ----------------------------- | --------------------------- | ------------------------------------------------- |
+| `min_items` / `max_items` | `min_items: 3`            | 元素个数范围                                      |
+| `unique`                    | `unique = true`           | 所有元素必须唯一（**不支持 message 类型**） |
+| `items`                     | `items.float.gt = 0`      | 对每个元素应用验证规则                            |
+| `items.message.skip`        | 跳过每个 message 元素的验证 |                                                   |
+| `ignore_empty`              | `ignore_empty: true`      | 若列表为空，跳过验证                              |
+
+###### 映射（Maps）
+
+| 规则                          | 示例                          | 说明                                                                |
+| ----------------------------- | ----------------------------- | ------------------------------------------------------------------- |
+| `min_pairs` / `max_pairs` | `min_pairs: 3`              | 键值对数量限制                                                      |
+| `no_sparse`                 | `no_sparse = true`          | 若值为 message，**不能有未设置的值**（即所有 value 必须非空） |
+| `keys`                      | `keys.sint32.lt = 0`        | 对所有 key 应用规则                                                 |
+| `values`                    | `values.string.min_len = 3` | 对所有 value 应用规则                                               |
+| `values.message.skip`       | 跳过 value（message）的验证   |                                                                     |
+| `ignore_empty`              | `ignore_empty: true`        | 若 map 为空，跳过验证                                               |
+
+###### Well-Known Types (WKTs)
+
+标量包装类型（如 `google.protobuf.Int32Value`）
+
+- 使用对应的**基础类型规则**（如 `int32.gt`）
+- 示例：
+  ```proto
+  google.protobuf.Int32Value x = 1 [(validate.rules).int32.gt = 3];
+  ```
+- 可结合 `message.required = true` 强制字段必须设置（避免未设置但值为 0）
+
+Any
+
+| 规则                | 示例                                    | 说明                            |
+| ------------------- | --------------------------------------- | ------------------------------- |
+| `required`        | `required = true`                     | 必须设置                        |
+| `in` / `not_in` | `not_in: ["type.googleapis.com/..."]` | 限制 `type_url` 的允许/禁止值 |
+
+Duration（持续时间）
+
+| 规则                                | 示例                                     | 说明                             |
+| ----------------------------------- | ---------------------------------------- | -------------------------------- |
+| `required`                        | `required = true`                      | 必须设置                         |
+| `const`                           | `const = {seconds:1, nanos:500000000}` | 精确等于 1.5 秒                  |
+| `lt` / `lte` / `gt` / `gte` | `lt.seconds = 10`                      | 与指定 Duration 比较             |
+| `in` / `not_in`                 | `in: [{}, {seconds:1}]`                | 白名单/黑名单（Duration 字面量） |
+
+Timestamp（时间戳）
+
+| 规则                                | 示例                                         | 说明                                               |
+| ----------------------------------- | -------------------------------------------- | -------------------------------------------------- |
+| `required`                        | `required = true`                          | 必须设置                                           |
+| `const`                           | `{seconds: 63393490800, nanos: 500000000}` | 精确等于某时间点                                   |
+| `lt` / `lte` / `gt` / `gte` | `lt.seconds = 0`                           | 与 Unix 时间比较                                   |
+| `lt_now` / `gt_now`             | `lt_now = true`                            | 与**当前时间**比较（不能与绝对时间规则共用） |
+| `within`                          | `within.seconds = 1`                       | 在当前时间 ±1 秒内                                |
+| 组合                                | `{gt_now: true, within: {seconds: 3600}}`  | 时间 ∈ (now, now + 1h)                            |
+
+###### 消息级全局规则
+
+| 规则                                   | 作用                                        |
+| -------------------------------------- | ------------------------------------------- |
+| `option (validate.disabled) = true;` | 禁用整个 message 的所有验证（包括嵌套字段） |
+| `option (validate.ignored) = true;`  | 不生成任何验证代码（完全忽略该 message）    |
+
+###### OneOf 规则
+
+| 规则                                   | 示例              | 说明                                          |
+| -------------------------------------- | ----------------- | --------------------------------------------- |
+| `option (validate.required) = true;` | 在 oneof 块内声明 | 必须设置 oneof 中的某一个字段（不能全未设置） |
+
+```proto
+oneof id {
+  option (validate.required) = true;
+  string x = 1;
+  int32  y = 2;
+  Person z = 3;
+}
+```
+
+##### 使用步骤
+
+① 下载插件
+
+在使用 validate 之前首先需要安装 [proto-gen-validate](https://github.com/envoyproxy/protoc-gen-validate)。
+
+```bash
+go install github.com/envoyproxy/protoc-gen-validate@latest
+```
+
+② 在pb⽂件中按要求编写字段校验规则：`api/review/v1/review.proto` ⽂件
+
+③ ⽣成代码
+
+* 直接使用 `protoc`生成
+
+  ```bash
+  protoc --proto_path=. \
+             --proto_path=./third_party \
+             --go_out=paths=source_relative:. \
+             --validate_out=paths=source_relative,lang=go:. \
+             xxxx.proto
+  ```
+* 在Makefile中添加 `validate`命令
+
+  ```Makefile
+  .PHONY: validate
+  # generate validate proto
+  validate:
+      protoc --proto_path=. \
+             --proto_path=./third_party \
+             --go_out=paths=source_relative:. \
+             --validate_out=paths=source_relative,lang=go:. \
+             $(API_PROTO_FILES)
+  ```
+* 执行命令
+
+  ```
+  make validate
+  ```
+
+④ 注册参数校验中间件
+
+我们可以将 validate 中间件注入到 http 或者 grpc 中，在有请求进入时 validate 中间件会自动对参数根据 proto 中编写的规则进行校验。
+
+* http
+
+  ```
+  httpSrv := http.NewServer(
+      http.Address(":8000"),
+      http.Middleware(
+          validate.ProtoValidate(),
+      ))
+  ```
+* grpc
+
+  ```
+  grpcSrv := grpc.NewServer(
+      grpc.Address(":9000"),
+      grpc.Middleware(
+          validate.ProtoValidate(),
+      ))
+  ```
+
+# [服务注册与服务发现](https://go-kratos.dev/zh-cn/docs/component/registry/#_top)
+
+① 新增注册中⼼配置(实现准备好注册中⼼以consul为例)
+
+* internal/conf/xx.proto
+* configs/xx.yaml
+
+② review-service添加服务注册流程
+
+* 注册的时机 --> internal/server层 --> 提供构造函数--> wire注⼊
+* main函数传⼊conf.Registry配置
+* 指定应⽤程序的name和version，在注册时使⽤
+
+③ review-b添加服务发现流程
+
+* 服务发现的时机 --> internal/data 层 --> 提供构造函数 --> wire注⼊
+* main函数传⼊conf.Registry配置
